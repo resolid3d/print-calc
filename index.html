@@ -55,7 +55,8 @@ h1{font-size:1.6rem;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:bal
 .vtools{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .vtools .btn{padding:5px 10px;font-size:.82rem;background:color-mix(in srgb,var(--surface) 88%,transparent)}
 .vtools label{display:inline-flex;gap:6px;align-items:center;font-size:.82rem;color:var(--muted);margin-left:auto;background:color-mix(in srgb,var(--surface) 88%,transparent);padding:5px 8px;border-radius:var(--r)}
-.vempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:24px;color:var(--muted);pointer-events:none}
+.vempty{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:16px 24px 20px;color:var(--muted);pointer-events:none;background:linear-gradient(to top,var(--surface) 55%,transparent)}
+.vempty .btn{pointer-events:auto;margin-top:4px}
 .vempty b{color:var(--fg);font-weight:500;font-size:1rem}
 .vempty span{max-width:36ch}
 .toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
@@ -127,7 +128,7 @@ table.mats{width:100%;border-collapse:collapse;font-size:.88rem}
     <section class="left">
       <div class="viewer" id="viewer">
         <canvas id="cv"></canvas>
-        <div class="vempty" id="vEmpty"><b>Модель не обов'язкова</b><span>Перетягни STL чи OBJ сюди, щоб побачити габарити й нависання або оцінити друк без слайсера.</span></div>
+        <div class="vempty" id="vEmpty"><b>Модель не обов'язкова</b><span>Перетягни STL чи OBJ сюди, щоб побачити габарити й нависання або оцінити друк без слайсера.</span><label class="btn" for="file">Відкрити модель…</label></div>
         <div class="vtools" id="vTools">
           <button class="btn" id="rotX" type="button" title="Повернути на 90° навколо X">↻ X 90°</button>
           <button class="btn" id="rotY" type="button" title="Повернути на 90° навколо Y">↻ Y 90°</button>
@@ -441,6 +442,22 @@ const ctl=new THREE.OrbitControls(cam,cv);ctl.enableDamping=true;
 scene.add(new THREE.HemisphereLight(0xffffff,0x667788,0.75));
 const sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(1,-1.5,2.5);scene.add(sun);
 let mesh=null,bed=null;
+const ghost=(()=>{
+  const pts=[],H=60,step=2;
+  for(let z=0;z<=H;z+=step){
+    const r=17+7*Math.sin(z/H*Math.PI*1.15+0.4),tw=z/H*Math.PI/3;
+    for(let i=0;i<6;i++){
+      const a0=tw+i*Math.PI/3,a1=tw+(i+1)*Math.PI/3;
+      pts.push(r*Math.cos(a0),r*Math.sin(a0),z,r*Math.cos(a1),r*Math.sin(a1),z);
+    }
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(pts,3));
+  return new THREE.LineSegments(g,new THREE.LineBasicMaterial({transparent:true,opacity:.55}));
+})();
+scene.add(ghost);
+const still=matchMedia("(prefers-reduced-motion: reduce)");
+function paintGhost(){ghost.material.color=new THREE.Color(css("--accent")||"#0d7681");}
+function fitGhost(){ctl.target.set(0,0,8);cam.position.set(125,-175,150);cam.near=1;cam.far=5000;cam.updateProjectionMatrix();ctl.update();}
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function buildBed(){
   if(bed){scene.remove(bed);bed.geometry.dispose();}
@@ -478,8 +495,9 @@ function fitCam(){
 }
 function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(viewer);
-(function loop(){requestAnimationFrame(loop);ctl.update();renderer.render(scene,cam);})();
-function retheme(){buildBed();paintMesh();}
+(function loop(){requestAnimationFrame(loop);if(ghost.visible&&!still.matches)ghost.rotation.z+=0.004;ctl.update();renderer.render(scene,cam);})();
+function retheme(){buildBed();paintMesh();paintGhost();}
+paintGhost();fitGhost();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",retheme);
 new MutationObserver(retheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 $("showOver").addEventListener("change",paintMesh);
@@ -554,7 +572,7 @@ function update(){
   $("modeSl").setAttribute("aria-pressed",String(S.mode==="slicer"));
   $("modeEst").setAttribute("aria-pressed",String(S.mode==="estimate"));
   $("slN").placeholder=String(Math.max(1,Math.round(S.qty||1)));
-  $("vEmpty").hidden=!!M;$("vTools").hidden=!M;
+  $("vEmpty").hidden=!!M;$("vTools").hidden=!M;ghost.visible=!M;
   if(mesh){mesh.scale.setScalar(S.scale/100);paintMesh();}
   const r=calc(),e=r.e;
 
@@ -625,7 +643,7 @@ function update(){
 $("clearOrder").addEventListener("click",()=>{
   for(const k of ONCE){S[k]=DEF[k];const el=$(k);if(el)el.value=showVal(k);}
   if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh=null;}
-  M=null;A=null;$("mName").textContent="Модель не відкрита";
+  M=null;A=null;$("mName").textContent="Модель не відкрита";fitGhost();
   update();$("slH").focus();
 });
 $("modeSl").addEventListener("click",()=>{S.mode="slicer";save();update();});
