@@ -58,6 +58,7 @@ h1{font-size:1.6rem;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:bal
 .vempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:24px;color:var(--muted);pointer-events:none}
 .vempty b{color:var(--fg);font-weight:500;font-size:1rem}
 .vempty span{max-width:36ch}
+.toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .seg{display:inline-flex;align-self:start;gap:3px;padding:3px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
 .seg button{font:500 .9rem var(--f-body);border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:6px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
@@ -146,9 +147,12 @@ table.mats{width:100%;border-collapse:collapse;font-size:.88rem}
     </section>
 
     <section class="right">
-      <div class="seg" role="group" aria-label="Як рахувати">
-        <button type="button" id="modeSl" aria-pressed="true">За слайсером</button>
-        <button type="button" id="modeEst" aria-pressed="false">Оцінка з файлу</button>
+      <div class="toprow">
+        <div class="seg" role="group" aria-label="Як рахувати">
+          <button type="button" id="modeSl" aria-pressed="true">За слайсером</button>
+          <button type="button" id="modeEst" aria-pressed="false">Оцінка з файлу</button>
+        </div>
+        <button class="btn" id="clearOrder" type="button">Очистити замовлення</button>
       </div>
       <dl class="summary">
         <div class="price"><dt>Ціна</dt><dd id="oPrice">—</dd><small id="oPriceEa"></small></div>
@@ -610,6 +614,13 @@ function update(){
   showWarns(w);
 }
 
+// нове замовлення: разові поля до початкових, модель прибрати; налаштування не чіпаємо
+$("clearOrder").addEventListener("click",()=>{
+  for(const k of ONCE){S[k]=DEF[k];const el=$(k);if(el)el.value=(CLEARABLE.includes(k)&&!S[k])?"":S[k];}
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh=null;}
+  M=null;A=null;$("mName").textContent="Модель не відкрита";
+  update();$("slH").focus();
+});
 $("modeSl").addEventListener("click",()=>{S.mode="slicer";save();update();});
 $("modeEst").addEventListener("click",()=>{S.mode="estimate";save();update();});
 
