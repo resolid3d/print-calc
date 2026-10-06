@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230d7681%22%2F%3E%3Cpath%20d%3D%22M8%2023h16M10%2019h12M12%2015h8M14%2011h4%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<title>Калькулятор друку</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workshop bench — 3D view on the left (sticky), summary → parameters on the right; stacks on phone */
+:root{
+  --bg:#eceff2; --surface:#fafbfc; --fg:#1a1f25; --muted:#5b6672; --line:#d3d9df;
+  --accent:#0d7681; --accent-fg:#ffffff; --warn:#b5651d; --bad:#b3261e; --model:#9fb3c2;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13171b; --surface:#1b2026; --fg:#e4e9ee; --muted:#93a0ac; --line:#2b333b;
+  --accent:#3db3bd; --accent-fg:#0b1417; --warn:#e3a062; --bad:#f06b5f; --model:#7f97a8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13171b; --surface:#1b2026; --fg:#e4e9ee; --muted:#93a0ac; --line:#2b333b;
+  --accent:#3db3bd; --accent-fg:#0b1417; --warn:#e3a062; --bad:#f06b5f; --model:#7f97a8; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding:0 16px}
+.app{max-width:1280px;margin:0 auto;padding-block:20px 40px;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between}
+h1{font-size:1.6rem;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.btn{display:inline-flex;align-items:center;gap:6px;font:500 .9rem var(--f-body);padding:8px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;align-items:start}
+.grid .left{order:2}.grid .right{order:1}
+@media (max-width:900px){.grid .left{order:0}}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.left{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (max-width:900px){.left{position:static}}
+.right{display:flex;flex-direction:column;gap:16px;min-width:0}
+.prow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.prow select{flex:1 1 200px;width:auto}
+.btn:disabled{opacity:.5;cursor:default}
+.mt{margin-top:10px}
+.prsum{text-transform:none;letter-spacing:0;color:var(--fg);margin-left:10px;font-weight:500}
+.prsum b{font-family:var(--f-mono);font-weight:500;color:var(--accent);margin-left:8px}
+.viewer{position:relative;aspect-ratio:4/3;max-width:100%;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.viewer canvas{display:block;width:100%;height:100%;touch-action:none}
+.viewer.drag{outline:2px dashed var(--accent);outline-offset:-8px}
+.vtools{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vtools .btn{padding:5px 10px;font-size:.82rem;background:color-mix(in srgb,var(--surface) 88%,transparent)}
+.vtools label{display:inline-flex;gap:6px;align-items:center;font-size:.82rem;color:var(--muted);margin-left:auto;background:color-mix(in srgb,var(--surface) 88%,transparent);padding:5px 8px;border-radius:var(--r)}
+.vempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:24px;color:var(--muted);pointer-events:none}
+.vempty b{color:var(--fg);font-weight:500;font-size:1rem}
+.vempty span{max-width:36ch}
+.seg{display:inline-flex;align-self:start;gap:3px;padding:3px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.seg button{font:500 .9rem var(--f-body);border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mname{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:500;min-width:0}
+.mname span:first-child{overflow-wrap:anywhere}
+.chip{font:500 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chip.warn{border-color:var(--warn);color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;margin:0}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stats div{min-width:0}
+.stats dt{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.stats dd{margin:2px 0 0;font:500 .95rem var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.warns{display:flex;flex-direction:column;gap:6px}
+.warns p{margin:0;padding:8px 12px;border-left:3px solid var(--warn);background:var(--surface);font-size:.88rem}
+.warns p.bad{border-left-color:var(--bad)}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (max-width:520px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.summary div{background:var(--surface);padding:12px 14px;min-width:0}
+.summary dt{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.summary dd{margin:4px 0 0;font:500 1.15rem var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.summary .price dd{color:var(--accent);font-weight:700}
+.summary small{display:block;font:400 .75rem var(--f-mono);color:var(--muted);margin-top:2px}
+table.bd{width:100%;border-collapse:collapse;font-size:.9rem}
+.bd td{padding:6px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.bd td.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px}
+.bd td .hint{display:block;color:var(--muted);font-size:.78rem;font-family:var(--f-mono)}
+.bd tr.tot td{font-weight:700;border-bottom:2px solid var(--fg)}
+.bd tr.fin td{font-weight:700;color:var(--accent);border-bottom:none;font-size:1rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.panel h2,.panel summary{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;margin:0 0 10px}
+details.panel summary{cursor:pointer;margin:0}
+details.panel[open] summary{margin-bottom:10px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+@media (max-width:420px){.fields{grid-template-columns:minmax(0,1fr)}}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:.84rem;color:var(--muted)}
+.f .row{display:flex;align-items:center;gap:6px}
+.f .u{font-size:.8rem;color:var(--muted);white-space:nowrap}
+input,select{font:400 .95rem var(--f-mono);font-variant-numeric:tabular-nums;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;min-width:0}
+input[type=checkbox]{width:auto}
+input[type=range]{padding:0;accent-color:var(--accent)}
+.note{font-size:.8rem;color:var(--muted);margin:10px 0 0}
+table.mats{width:100%;border-collapse:collapse;font-size:.88rem}
+.mats th{text-align:left;font-weight:500;color:var(--muted);font-size:.78rem;padding:4px 6px 4px 0}
+.mats td{padding:3px 6px 3px 0}
+.mats td:first-child{min-width:110px}
+.btn.xs{padding:4px 9px;font-size:.8rem;white-space:nowrap}
+.matwrap{overflow-x:auto}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Калькулятор друку</h1>
+      <p class="sub">Ціна FDM-друку за даними слайсера. STL чи OBJ можна відкрити для швидкої оцінки без слайсера — файл розбирається в браузері й нікуди не відправляється.</p>
+    </div>
+    <label class="btn primary" for="file">Відкрити модель…</label>
+    <input type="file" id="file" accept=".stl,.obj" hidden>
+  </header>
+
+  <main class="grid">
+    <section class="left">
+      <div class="viewer" id="viewer">
+        <canvas id="cv"></canvas>
+        <div class="vempty" id="vEmpty"><b>Модель не обов'язкова</b><span>Перетягни STL чи OBJ сюди, щоб побачити габарити й нависання або оцінити друк без слайсера.</span></div>
+        <div class="vtools" id="vTools">
+          <button class="btn" id="rotX" type="button" title="Повернути на 90° навколо X">↻ X 90°</button>
+          <button class="btn" id="rotY" type="button" title="Повернути на 90° навколо Y">↻ Y 90°</button>
+          <button class="btn" id="rotReset" type="button">Як у файлі</button>
+          <label><input type="checkbox" id="showOver" checked> нависання</label>
+        </div>
+      </div>
+      <div class="mname"><span id="mName">Модель не відкрита</span><span class="chip" id="mChip" hidden></span></div>
+      <dl class="stats">
+        <div><dt>Габарити, мм</dt><dd id="sSize">—</dd></div>
+        <div><dt>Об'єм</dt><dd id="sVol">—</dd></div>
+        <div><dt>Площа поверхні</dt><dd id="sArea">—</dd></div>
+        <div><dt>Шарів</dt><dd id="sLayers">—</dd></div>
+        <div><dt>Нависання &gt;45°</dt><dd id="sOver">—</dd></div>
+        <div><dt>Трикутників</dt><dd id="sTris">—</dd></div>
+      </dl>
+      <div class="warns" id="warns"></div>
+    </section>
+
+    <section class="right">
+      <div class="seg" role="group" aria-label="Як рахувати">
+        <button type="button" id="modeSl" aria-pressed="true">За слайсером</button>
+        <button type="button" id="modeEst" aria-pressed="false">Оцінка з файлу</button>
+      </div>
+      <dl class="summary">
+        <div class="price"><dt>Ціна</dt><dd id="oPrice">—</dd><small id="oPriceEa"></small></div>
+        <div><dt>Собівартість</dt><dd id="oCost">—</dd><small id="oCostEa"></small></div>
+        <div><dt>Час друку</dt><dd id="oTime">—</dd><small id="oTimeEa"></small></div>
+        <div><dt>Пластик</dt><dd id="oMass">—</dd><small id="oLen"></small></div>
+      </dl>
+
+      <div class="panel">
+        <h2>Розрахунок</h2>
+        <table class="bd"><tbody id="bd"></tbody></table>
+      </div>
+
+      <div class="panel">
+        <h2>Замовлення</h2>
+        <div class="fields">
+          <div class="f"><label for="mat">Матеріал</label><select id="mat"></select></div>
+          <div class="f"><label for="qty">Кількість</label><div class="row"><input type="number" id="qty" min="1" step="1"><span class="u">шт</span></div></div>
+        </div>
+      </div>
+
+      <div class="panel" data-mode="slicer">
+        <h2>Дані зі слайсера</h2>
+        <div class="fields">
+          <div class="f"><label for="slH">Час друку столу</label><div class="row"><input type="number" id="slH" min="0" step="1"><span class="u">год</span><input type="number" id="slM" min="0" max="59" step="1"><span class="u">хв</span></div></div>
+          <div class="f"><label for="slG">Маса столу</label><div class="row"><input type="number" id="slG" min="0" step="0.1"><span class="u">г</span></div></div>
+          <div class="f"><label for="slN">Деталей на столі</label><div class="row"><input type="number" id="slN" min="1" step="1"><span class="u">шт</span></div></div>
+        </div>
+        <p class="note" id="slNote"></p>
+        <button class="btn" id="slCal" type="button" hidden>Підлаштувати потік під слайсер</button>
+      </div>
+
+      <div class="panel" data-mode="estimate" hidden>
+        <h2>Параметри друку</h2>
+        <div class="fields">
+          <div class="f"><label for="scale">Масштаб</label><div class="row"><input type="number" id="scale" min="1" step="1"><span class="u">%</span></div></div>
+          <div class="f"><label for="layer">Висота шару</label><select id="layer">
+            <option value="0.08">0.08 мм — дуже детально</option>
+            <option value="0.12">0.12 мм — детально</option>
+            <option value="0.16">0.16 мм — якісно</option>
+            <option value="0.2">0.20 мм — стандарт</option>
+            <option value="0.24">0.24 мм — чернетка</option>
+            <option value="0.28">0.28 мм — швидко</option>
+          </select></div>
+          <div class="f"><label for="walls">Периметрів (стінок)</label><input type="number" id="walls" min="1" max="10" step="1"></div>
+          <div class="f"><label for="infill">Заповнення: <b id="infillV"></b></label><input type="range" id="infill" min="0" max="100" step="5"></div>
+          <div class="f"><label for="supports">Підтримки</label><select id="supports">
+            <option value="auto">За нависаннями</option>
+            <option value="none">Без підтримок</option>
+          </select></div>
+          <div class="f"><label for="supDens">Щільність підтримок</label><div class="row"><input type="number" id="supDens" min="5" max="100" step="5"><span class="u">%</span></div></div>
+        </div>
+        <p class="note">Прикидка без слайсера: маса зазвичай у межах ±10%, час — ±20–30%. Візерунок заповнення, швидкості й прискорення з файлу не видно. Точніше стане після «Підлаштувати потік під слайсер» на схожих деталях.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Гроші</h2>
+        <div class="fields">
+          <div class="f"><label for="waste">Відходи, брак</label><div class="row"><input type="number" id="waste" min="0" step="1"><span class="u">%</span></div></div>
+          <div class="f"><label for="post">Постобробка</label><div class="row"><input type="number" id="post" min="0" step="5"><span class="u">грн/шт</span></div></div>
+          <div class="f"><label for="prep">Підготовка</label><div class="row"><input type="number" id="prep" min="0" step="5"><span class="u">грн/замовл.</span></div></div>
+          <div class="f"><label for="modelH">Моделювання</label><div class="row"><input type="number" id="modelH" min="0" step="0.5"><span class="u">год</span></div></div>
+          <div class="f"><label for="modelRate">Ставка моделювання</label><div class="row"><input type="number" id="modelRate" min="0" step="10"><span class="u">грн/год</span></div></div>
+          <div class="f"><label for="scanH">Сканування й обробка скану</label><div class="row"><input type="number" id="scanH" min="0" step="0.5"><span class="u">год</span></div></div>
+          <div class="f"><label for="scanRate">Ставка сканування</label><div class="row"><input type="number" id="scanRate" min="0" step="10"><span class="u">грн/год</span></div></div>
+          <div class="f"><label for="scanCons">Спрей, мітки</label><div class="row"><input type="number" id="scanCons" min="0" step="10"><span class="u">грн</span></div></div>
+          <div class="f"><label for="markup">Націнка</label><div class="row"><input type="number" id="markup" min="0" step="5"><span class="u">%</span></div></div>
+        </div>
+      </div>
+
+      <details class="panel" id="prPanel" open>
+        <summary>Принтер<span class="prsum" id="prSum"></span></summary>
+        <div class="prow">
+          <select id="printer" aria-label="Пресет принтера"></select>
+          <button class="btn" id="prCopy" type="button">Копія</button>
+          <button class="btn" id="prDel" type="button">Видалити</button>
+        </div>
+        <div class="f mt"><label for="prName">Назва пресета</label><input type="text" id="prName" maxlength="60"></div>
+        <div class="mt"></div>
+        <div class="fields">
+          <div class="f"><label for="rate">Ціна години друку</label><div class="row"><input type="number" id="rate" min="0" step="1"><span class="u">грн/год</span></div></div>
+          <div class="f"><label for="flow">Середній потік на шарі 0.2</label><div class="row"><input type="number" id="flow" min="1" step="0.5"><span class="u">мм³/с</span></div></div>
+          <div class="f"><label for="layerSec">Втрати на шар</label><div class="row"><input type="number" id="layerSec" min="0" step="0.5"><span class="u">с</span></div></div>
+          <div class="f"><label for="warm">Розігрів і калібрування</label><div class="row"><input type="number" id="warm" min="0" step="1"><span class="u">хв</span></div></div>
+          <div class="f"><label for="lineW">Ширина лінії</label><div class="row"><input type="number" id="lineW" min="0.2" step="0.01"><span class="u">мм</span></div></div>
+          <div class="f"><label for="bedX">Стіл X × Y</label><div class="row"><input type="number" id="bedX" min="10"><span class="u">×</span><input type="number" id="bedY" min="10"></div></div>
+          <div class="f"><label for="bedZ">Висота друку</label><div class="row"><input type="number" id="bedZ" min="10"><span class="u">мм</span></div></div>
+        </div>
+        <p class="note">Зміни в цих полях зберігаються в пресеті. Ціна години — амортизація принтера, електрика, сопла, пластини; для домашнього принтера зазвичай 10–40 грн/год. Значення пресетів — стартові; потік точно підбереш кнопкою «Підлаштувати потік під слайсер».</p>
+      </details>
+
+      <details class="panel">
+        <summary>Матеріали</summary>
+        <div class="matwrap"><table class="mats">
+          <thead><tr><th>Матеріал</th><th>Густина, г/см³</th><th>Ціна, грн/кг</th><th></th></tr></thead>
+          <tbody id="matsBody"></tbody>
+        </table></div>
+        <button class="btn mt" id="matAdd" type="button">+ Додати матеріал</button>
+        <p class="note">Назву можна змінити прямо в таблиці. Густину бери з етикетки котушки або з профілю слайсера. Діаметр філаменту 1.75 мм.</p>
+      </details>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const STORE="printcalc.v1";
+
+const MATS={
+  "PLA":{d:1.24,p:600},"PETG":{d:1.27,p:650},"ABS":{d:1.04,p:650},
+  "ASA":{d:1.05,p:850},"TPU 95A":{d:1.21,p:1100},"PA-CF":{d:1.15,p:2600}
+};
+const DEF={mode:"slicer",scale:100,qty:1,mat:"PLA",layer:"0.2",walls:2,infill:15,supports:"auto",supDens:15,
+  rate:20,waste:5,post:0,prep:0,modelH:0,modelRate:400,scanH:0,scanRate:500,scanCons:0,markup:30,
+  flow:10,layerSec:4,warm:3,lineW:0.45,bedX:220,bedY:220,bedZ:250,slH:0,slM:0,slG:0,slN:0};
+const KEYS=Object.keys(DEF);
+// дані конкретного замовлення: не зберігаються між відкриттями
+const ONCE=["scale","qty","slH","slM","slG","slN","post","modelH","scanH","scanCons"];
+
+// порожнє поле = 0
+const CLEARABLE=["slH","slM","slG","slN","post","prep","modelH","scanH","scanCons"];
+const PR_KEYS=["flow","layerSec","warm","lineW","bedX","bedY","bedZ","rate"];
+const PRESETS=[
+  {id:"h2d",name:"Bambu Lab H2D",v:{flow:12,layerSec:3,warm:15,lineW:0.42,bedX:325,bedY:320,bedZ:325,rate:25}},
+  {id:"x1c",name:"Bambu Lab X1C / X1E",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:20}},
+  {id:"p1s",name:"Bambu Lab P1S / P1P",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:15}},
+  {id:"a1",name:"Bambu Lab A1",v:{flow:10,layerSec:3,warm:6,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:10}},
+  {id:"a1m",name:"Bambu Lab A1 mini",v:{flow:9,layerSec:3,warm:5,lineW:0.42,bedX:180,bedY:180,bedZ:180,rate:8}},
+  {id:"mk4",name:"Prusa MK4S",v:{flow:12,layerSec:3,warm:6,lineW:0.45,bedX:250,bedY:210,bedZ:220,rate:15}},
+  {id:"k1",name:"Creality K1 / K1C",v:{flow:12,layerSec:3,warm:5,lineW:0.42,bedX:220,bedY:220,bedZ:250,rate:12}},
+  {id:"e3",name:"Creality Ender-3 V2",v:{flow:6,layerSec:5,warm:4,lineW:0.45,bedX:220,bedY:220,bedZ:250,rate:6}}
+];
+let S={...DEF}, mats=JSON.parse(JSON.stringify(MATS)), printers=JSON.parse(JSON.stringify(PRESETS)), curP="h2d";
+try{const raw=localStorage.getItem(STORE);if(raw){const o=JSON.parse(raw);Object.assign(S,o.s||{});for(const k of ONCE)S[k]=DEF[k];if(o.m&&Object.keys(o.m).length)mats=o.m;
+  if(Array.isArray(o.p)&&o.p.length){printers=o.p;curP=o.cur||printers[0].id;}
+  else if(o.s&&o.s.rate!=null&&o.s.rate!==DEF.rate)printers[0].v.rate=o.s.rate;}}catch(e){}
+function save(){
+  const keep={};for(const k of KEYS)if(!ONCE.includes(k))keep[k]=S[k];
+  try{localStorage.setItem(STORE,JSON.stringify({s:keep,m:mats,p:printers,cur:curP}))}catch(e){}
+}
+const curPr=()=>printers.find(p=>p.id===curP)||printers[0];
+
+// ---------- UI binding ----------
+const matSel=$("mat");
+function buildMats(){
+  if(!mats[S.mat])S.mat=Object.keys(mats)[0];
+  matSel.innerHTML="";const tb=$("matsBody");tb.innerHTML="";
+  const names=Object.keys(mats);
+  names.forEach((k,i)=>{
+    const o=document.createElement("option");o.value=k;o.textContent=k;matSel.appendChild(o);
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input type="text" id="mn_${i}" maxlength="30" aria-label="Назва матеріалу"></td><td><input type="number" step="0.01" min="0.5" id="md_${i}" aria-label="Густина"></td><td><input type="number" step="10" min="0" id="mp_${i}" aria-label="Ціна за кілограм"></td><td><button class="btn xs" type="button" id="mx_${i}">Видалити</button></td>`;
+    tb.appendChild(tr);
+    const nm=tr.querySelector("#mn_"+i),dn=tr.querySelector("#md_"+i),pr=tr.querySelector("#mp_"+i),del=tr.querySelector("#mx_"+i);
+    nm.value=k;dn.value=mats[k].d;pr.value=mats[k].p;
+    nm.addEventListener("change",()=>{
+      const nn=nm.value.trim();
+      if(!nn||nn===k||mats[nn]){nm.value=k;return;}
+      mats=Object.fromEntries(Object.entries(mats).map(([kk,v])=>[kk===k?nn:kk,v]));
+      if(S.mat===k)S.mat=nn;save();buildMats();update();
+    });
+    for(const [inp,f] of [[dn,"d"],[pr,"p"]])inp.addEventListener("input",()=>{
+      const v=parseFloat(inp.value);if(!(v>0))return;mats[k][f]=v;save();update();
+    });
+    del.disabled=names.length<2;
+    let armed=null;
+    del.addEventListener("click",()=>{
+      if(!armed){del.textContent="Точно?";armed=setTimeout(()=>{armed=null;del.textContent="Видалити";},3000);return;}
+      clearTimeout(armed);delete mats[k];save();buildMats();update();
+    });
+  });
+  matSel.value=S.mat;
+}
+$("matAdd").addEventListener("click",()=>{
+  let n="Новий матеріал",i=2;while(mats[n])n="Новий матеріал "+i++;
+  mats[n]={d:1.24,p:600};save();buildMats();
+  const inp=$("mn_"+(Object.keys(mats).length-1));inp.closest("details").open=true;inp.focus();inp.select();
+});
+buildMats();
+for(const k of KEYS){
+  const el=$(k);if(!el)continue;el.value=(CLEARABLE.includes(k)&&!S[k])?"":S[k];
+  el.addEventListener("input",()=>{
+    const num=typeof DEF[k]==="number";
+    if(num){
+      if(el.value===""&&CLEARABLE.includes(k))S[k]=0;
+      else{const v=parseFloat(el.value);if(!isFinite(v))return;S[k]=v;}
+    }else S[k]=el.value;
+    if(PR_KEYS.includes(k)){curPr().v[k]=S[k];refreshPr();}
+    save();
+    if(["bedX","bedY"].includes(k))buildBed();
+    update();
+  });
+}
+
+// ---------- parsing ----------
+function parseSTL(buf){
+  const dv=new DataView(buf);
+  if(buf.byteLength>=84){
+    const n=dv.getUint32(80,true);
+    if(n>0&&84+n*50===buf.byteLength){
+      const pos=new Float32Array(n*9);
+      for(let i=0;i<n;i++){const o=84+i*50+12;for(let j=0;j<9;j++)pos[i*9+j]=dv.getFloat32(o+j*4,true);}
+      return pos;
+    }
+  }
+  const text=new TextDecoder().decode(buf);
+  const re=/vertex\s+(\S+)\s+(\S+)\s+(\S+)/g;const out=[];let m;
+  while((m=re.exec(text)))out.push(+m[1],+m[2],+m[3]);
+  if(!out.length||out.length%9)throw new Error("Не вдалося прочитати STL: файл пошкоджений або це не STL.");
+  return new Float32Array(out);
+}
+function parseOBJ(buf){
+  const text=new TextDecoder().decode(buf);const v=[];const out=[];
+  for(const line of text.split(/\r?\n/)){
+    if(line.startsWith("v ")){const p=line.trim().split(/\s+/);v.push([+p[1],+p[2],+p[3]]);}
+    else if(line.startsWith("f ")){
+      const idx=line.trim().split(/\s+/).slice(1).map(t=>{let i=parseInt(t,10);return i<0?v.length+i:i-1;});
+      for(let i=1;i+1<idx.length;i++){for(const j of [idx[0],idx[i],idx[i+1]]){const p=v[j];if(!p)throw new Error("OBJ посилається на неіснуючу вершину.");out.push(p[0],p[1],p[2]);}}
+    }
+  }
+  if(!out.length)throw new Error("В OBJ немає граней.");
+  return new Float32Array(out);
+}
+
+// ---------- geometry ----------
+function normalize(pos){
+  let a=[Infinity,Infinity,Infinity],b=[-Infinity,-Infinity,-Infinity];
+  for(let i=0;i<pos.length;i+=3)for(let k=0;k<3;k++){const x=pos[i+k];if(x<a[k])a[k]=x;if(x>b[k])b[k]=x;}
+  const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2,mz=a[2];
+  for(let i=0;i<pos.length;i+=3){pos[i]-=cx;pos[i+1]-=cy;pos[i+2]-=mz;}
+}
+function rotate(pos,axis){ // +90°
+  for(let i=0;i<pos.length;i+=3){
+    const x=pos[i],y=pos[i+1],z=pos[i+2];
+    if(axis==="x"){pos[i+1]=-z;pos[i+2]=y;}else{pos[i]=z;pos[i+2]=-x;}
+  }
+  normalize(pos);
+}
+function countOpenEdges(pos){
+  const n=pos.length/9;if(n>1500000)return -1;
+  const vid=new Map();let next=0;const ids=new Uint32Array(n*3);
+  for(let i=0;i<n*3;i++){
+    const k=Math.round(pos[i*3]*1e4)+","+Math.round(pos[i*3+1]*1e4)+","+Math.round(pos[i*3+2]*1e4);
+    let id=vid.get(k);if(id===undefined){id=next++;vid.set(k,id);}ids[i]=id;
+  }
+  const edges=new Map();
+  for(let t=0;t<n;t++)for(let e=0;e<3;e++){
+    const a=ids[t*3+e],b=ids[t*3+(e+1)%3];if(a===b)continue;
+    const key=a<b?a*4294967296+b:b*4294967296+a;edges.set(key,(edges.get(key)||0)+1);
+  }
+  let open=0;for(const c of edges.values())if(c!==2)open++;
+  return open;
+}
+const OVER=-Math.SQRT1_2; // нормаль дивиться вниз крутіше 45°
+function analyze(pos){
+  const n=pos.length/9;let vol=0,area=0,overArea=0,supVol=0;
+  const mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];
+  for(let i=0;i<pos.length;i+=3)for(let k=0;k<3;k++){const x=pos[i+k];if(x<mn[k])mn[k]=x;if(x>mx[k])mx[k]=x;}
+  const over=new Uint8Array(n);
+  for(let t=0;t<n;t++){
+    const o=t*9;
+    const ax=pos[o],ay=pos[o+1],az=pos[o+2],bx=pos[o+3],by=pos[o+4],bz=pos[o+5],cx=pos[o+6],cy=pos[o+7],cz=pos[o+8];
+    vol+=(ax*(by*cz-bz*cy)-ay*(bx*cz-bz*cx)+az*(bx*cy-by*cx))/6;
+    const ux=bx-ax,uy=by-ay,uz=bz-az,vx=cx-ax,vy=cy-ay,vz=cz-az;
+    const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+    const len=Math.hypot(nx,ny,nz);if(!len)continue;
+    const a=len/2;area+=a;
+    const zc=(az+bz+cz)/3-mn[2];
+    if(nz/len<OVER&&zc>0.3){over[t]=1;overArea+=a;supVol+=a*(-nz/len)*zc;}
+  }
+  return {vol,area,overArea,supVol,over,tris:n,size:[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]]};
+}
+
+// ---------- three.js ----------
+const viewer=$("viewer"),cv=$("cv");
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(35,4/3,0.5,20000);cam.up.set(0,0,1);
+const ctl=new THREE.OrbitControls(cam,cv);ctl.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x667788,0.75));
+const sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(1,-1.5,2.5);scene.add(sun);
+let mesh=null,bed=null;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function buildBed(){
+  if(bed){scene.remove(bed);bed.geometry.dispose();}
+  const X=S.bedX/2,Y=S.bedY/2,pts=[];
+  for(let x=-X;x<=X+1e-6;x+=10)pts.push(x,-Y,0,x,Y,0);
+  for(let y=-Y;y<=Y+1e-6;y+=10)pts.push(-X,y,0,X,y,0);
+  pts.push(-X,-Y,0,X,-Y,0, X,-Y,0,X,Y,0, X,Y,0,-X,Y,0, -X,Y,0,-X,-Y,0);
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(pts,3));
+  bed=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:new THREE.Color(css("--line")||"#ccc")}));
+  scene.add(bed);
+}
+function paintMesh(){
+  if(!mesh)return;
+  const base=new THREE.Color(css("--model")||"#9fb3c2"),warn=new THREE.Color(css("--warn")||"#b5651d");
+  const col=mesh.geometry.getAttribute("color"),show=$("showOver").checked&&S.supports!=="none";
+  for(let t=0;t<A.tris;t++){const c=show&&A.over[t]?warn:base;for(let j=0;j<3;j++)col.setXYZ(t*3+j,c.r,c.g,c.b);}
+  col.needsUpdate=true;
+}
+function buildMesh(){
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose();}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(M.pos.slice(),3));
+  g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(M.pos.length),3));
+  g.computeVertexNormals();
+  mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.65,metalness:.05,side:THREE.DoubleSide}));
+  mesh.scale.setScalar(S.scale/100);
+  scene.add(mesh);paintMesh();
+}
+function fitCam(){
+  const s=S.scale/100,[x,y,z]=A.size.map(v=>v*s);
+  const r=Math.max(Math.hypot(x,y,z)/2,20);
+  ctl.target.set(0,0,z/2);
+  cam.position.set(r*1.9,-r*2.6,z/2+r*1.6);
+  cam.near=r/50;cam.far=r*100;cam.updateProjectionMatrix();ctl.update();
+}
+function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(viewer);
+(function loop(){requestAnimationFrame(loop);ctl.update();renderer.render(scene,cam);})();
+function retheme(){buildBed();paintMesh();}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",retheme);
+new MutationObserver(retheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+$("showOver").addEventListener("change",paintMesh);
+
+// ---------- model state ----------
+let M=null,A=null;
+function setModel(name,pos){
+  normalize(pos);
+  M={name,orig:pos.slice(),pos,open:countOpenEdges(pos)};
+  A=analyze(M.pos);
+  M.flipped=A.vol<0;
+  $("mName").textContent=name;
+  buildMesh();fitCam();update();
+}
+function reorient(fn){if(!M)return;fn();A=analyze(M.pos);buildMesh();fitCam();update();}
+$("rotX").onclick=()=>reorient(()=>rotate(M.pos,"x"));
+$("rotY").onclick=()=>reorient(()=>rotate(M.pos,"y"));
+$("rotReset").onclick=()=>reorient(()=>{M.pos=M.orig.slice();});
+
+async function openFile(file){
+  try{
+    const buf=await file.arrayBuffer();
+    const ext=file.name.split(".").pop().toLowerCase();
+    const pos=ext==="obj"?parseOBJ(buf):parseSTL(buf);
+    setModel(file.name,pos);
+  }catch(e){showWarns([{bad:true,t:e.message||String(e)}]);}
+}
+$("file").addEventListener("change",e=>{const f=e.target.files[0];if(f)openFile(f);e.target.value="";});
+["dragenter","dragover"].forEach(t=>viewer.addEventListener(t,e=>{e.preventDefault();viewer.classList.add("drag");}));
+["dragleave","drop"].forEach(t=>viewer.addEventListener(t,e=>{e.preventDefault();viewer.classList.remove("drag");}));
+viewer.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)openFile(f);});
+
+// ---------- calculation ----------
+const nf=(v,d=0)=>v.toLocaleString("uk-UA",{minimumFractionDigits:d,maximumFractionDigits:d});
+const uah=v=>nf(v,v<100?2:0)+" грн";
+const hm=h=>{const m=Math.round(h*60),H=Math.floor(m/60);return (H?H+" год ":"")+(m%60)+" хв";};
+function estimate(mat){
+  if(!A)return null;
+  const s=S.scale/100,s3=s*s*s;
+  const V=Math.abs(A.vol)*s3,area=A.area*s*s,size=A.size.map(v=>v*s);
+  const shell=Math.min(area*S.walls*S.lineW,V);
+  const infill=(V-shell)*S.infill/100;
+  const sup=S.supports==="none"?0:A.supVol*s3*S.supDens/100;
+  const ext=shell+infill+sup;
+  const layer=parseFloat(S.layer),layers=Math.max(1,Math.ceil(size[2]/layer-1e-9));
+  const flowEff=S.flow*Math.min(1.4,Math.max(0.4,layer/0.2));
+  return {V,area,size,shell,infill,sup,ext,layer,layers,
+    mass:ext/1000*mat.d,supMass:sup/1000*mat.d,hEa:(ext/flowEff+layers*S.layerSec)/3600};
+}
+function calc(){
+  const mat=mats[S.mat]||Object.values(mats)[0],e=estimate(mat),sl=S.mode==="slicer";
+  const q=Math.max(1,Math.round(S.qty||1));
+  const N=S.slN>0?Math.round(S.slN):q;
+  const slT=((S.slH||0)+(S.slM||0)/60)/N, slG1=(S.slG||0)/N;
+  const hasPrint=sl?(slT>0||slG1>0):!!e;
+  const hEa=sl?slT:(e?e.hEa:0), mass=sl?slG1:(e?e.mass:0);
+  const hTot=sl?hEa*q:(e?hEa*q+S.warm/60:0);
+  const massW=mass*(1+S.waste/100);
+  const cMat=massW*q*mat.p/1000, cMach=hTot*S.rate, cPost=S.post*q, cModel=S.modelH*S.modelRate, cPrep=S.prep;
+  const cScan=S.scanH*S.scanRate+S.scanCons;
+  const cost=cMat+cMach+cPost+cModel+cPrep+cScan, price=cost*(1+S.markup/100);
+  return {e,sl,q,N,slT,slG1,hasPrint,hEa,mass,massW,hTot,mat,cMat,cMach,cPost,cModel,cPrep,cScan,cost,price,
+    filLen:massW/mat.d/(Math.PI*0.875*0.875)};
+}
+function showWarns(list){
+  $("warns").innerHTML="";
+  for(const w of list){const p=document.createElement("p");if(w.bad)p.className="bad";p.textContent=w.t;$("warns").appendChild(p);}
+}
+function update(){
+  $("infillV").textContent=S.infill+"%";
+  document.querySelectorAll("[data-mode]").forEach(el=>{el.hidden=el.dataset.mode!==S.mode;});
+  $("modeSl").setAttribute("aria-pressed",String(S.mode==="slicer"));
+  $("modeEst").setAttribute("aria-pressed",String(S.mode==="estimate"));
+  $("slN").placeholder=String(Math.max(1,Math.round(S.qty||1)));
+  $("vEmpty").hidden=!!M;$("vTools").hidden=!M;
+  if(mesh){mesh.scale.setScalar(S.scale/100);paintMesh();}
+  const r=calc(),e=r.e;
+
+  $("sSize").textContent=e?e.size.map(v=>nf(v,1)).join(" × "):"—";
+  $("sVol").textContent=e?nf(e.V/1000,1)+" см³":"—";
+  $("sArea").textContent=e?nf(e.area/100,0)+" см²":"—";
+  $("sLayers").textContent=e?nf(e.layers):"—";
+  $("sOver").textContent=e?nf(A.overArea*(S.scale/100)**2/100,1)+" см²":"—";
+  $("sTris").textContent=e?nf(A.tris):"—";
+
+  const ea=r.q>1,empty=!r.hasPrint&&r.cost===0;
+  $("oPrice").textContent=empty?"—":uah(r.price);
+  $("oPriceEa").textContent=empty?(r.sl?"Введи дані слайсера":"Відкрий модель"):(ea?uah(r.price/r.q)+" / шт":"");
+  $("oCost").textContent=empty?"—":uah(r.cost);$("oCostEa").textContent=!empty&&ea?uah(r.cost/r.q)+" / шт":"";
+  $("oTime").textContent=r.hasPrint?hm(r.hTot):"—";$("oTimeEa").textContent=r.hasPrint&&ea?hm(r.hEa)+" / шт":"";
+  const mt=r.massW*r.q;
+  $("oMass").textContent=r.hasPrint?nf(mt,mt<100?1:0)+" г":"—";$("oLen").textContent=r.hasPrint?nf(r.filLen*r.q,1)+" м філаменту":"";
+
+  const rows=[];
+  if(r.hasPrint){
+    const g=v=>nf(v/1000*r.mat.d,1)+" г";
+    const matHint=r.sl
+      ?`${nf(r.slG1,1)} г на деталь${r.N>1?` (стіл ${nf(S.slG,1)} г ÷ ${r.N})`:""}`
+      :`${g(e.shell)} оболонка + ${g(e.infill)} заповнення${e.sup?` + ${g(e.sup)} підтримки`:""}`;
+    rows.push(["Пластик "+S.mat,matHint+`, +${S.waste}% відходів${r.q>1?`, × ${r.q}`:""}`,r.cMat]);
+    rows.push(["Час принтера",`${hm(r.hTot)}${r.q>1?` (${hm(r.hEa)} на деталь)`:""} × ${nf(S.rate)} грн/год`,r.cMach]);
+  }
+  if(r.cPost)rows.push(["Постобробка",`${nf(S.post)} грн × ${r.q} шт`,r.cPost]);
+  if(r.cPrep)rows.push(["Підготовка","",r.cPrep]);
+  if(r.cScan)rows.push(["Сканування",[S.scanH?`${nf(S.scanH,1)} год × ${nf(S.scanRate)} грн/год`:"",S.scanCons?`${nf(S.scanCons)} грн розхідники`:""].filter(Boolean).join(" + "),r.cScan]);
+  if(r.cModel)rows.push(["Моделювання",`${nf(S.modelH,1)} год × ${nf(S.modelRate)} грн/год`,r.cModel]);
+  let h=rows.map(([a,b,c])=>`<tr><td>${a}${b?`<span class="hint">${b}</span>`:""}</td><td class="n">${uah(c)}</td></tr>`).join("");
+  if(empty)h=`<tr><td><span class="hint">${r.sl?"Впиши загальний час і масу столу зі слайсера.":"Відкрий STL чи OBJ, щоб оцінити друк."}</span></td><td></td></tr>`;
+  else{
+    h+=`<tr class="tot"><td>Собівартість</td><td class="n">${uah(r.cost)}</td></tr>`;
+    h+=`<tr><td>Націнка ${nf(S.markup)}%</td><td class="n">${uah(r.price-r.cost)}</td></tr>`;
+    h+=`<tr class="fin"><td>Ціна${r.q>1?`<span class="hint">${uah(r.price/r.q)} за штуку</span>`:""}</td><td class="n">${uah(r.price)}</td></tr>`;
+  }
+  $("bd").innerHTML=h;
+
+  // порівняння слайсера з оцінкою з файлу
+  const parts=[];
+  if(e&&r.slT>0)parts.push(`час ${hm(e.hEa)} проти ${hm(r.slT)} (${e.hEa>r.slT?"+":""}${nf((e.hEa/r.slT-1)*100)}%)`);
+  if(e&&r.slG1>0)parts.push(`маса ${nf(e.mass,1)} г проти ${nf(r.slG1,1)} г (${e.mass>r.slG1?"+":""}${nf((e.mass/r.slG1-1)*100)}%)`);
+  $("slNote").textContent=parts.length
+    ?"Оцінка з файлу на одну деталь: "+parts.join(", ")+"."
+    :"Впиши загальні час і масу столу. Якщо на столі стільки деталей, скільки в замовленні, «Деталей на столі» можна не заповнювати.";
+  $("slCal").hidden=!(r.sl&&e&&r.slT>0&&r.slT*r.N*3600>e.layers*S.layerSec);
+
+  const w=[];
+  if(M&&e){
+    if(M.open>0)w.push({bad:true,t:`Сітка не замкнена: ${nf(M.open)} відкритих ребер. Об'єм і вага можуть бути неточні — полагодь модель перед друком.`});
+    if(M.flipped)w.push({t:"Нормалі вивернуті навиворіт. Об'єм узято за модулем, але слайсер може зрозуміти модель неправильно."});
+    const [x,y,z]=e.size,fitXY=(x<=S.bedX&&y<=S.bedY)||(x<=S.bedY&&y<=S.bedX);
+    if(!fitXY||z>S.bedZ)w.push({bad:true,t:`Модель не влазить у принтер (${S.bedX} × ${S.bedY} × ${S.bedZ} мм). Зменш масштаб, поверни або розріж.`});
+    if(!r.sl&&S.supports!=="none"&&e.sup>0&&e.supMass>e.mass*0.25)w.push({t:`Підтримки — ${nf(e.supMass/e.mass*100)}% маси. Спробуй повернути модель іншою гранню до столу.`});
+  }
+  showWarns(w);
+}
+
+$("modeSl").addEventListener("click",()=>{S.mode="slicer";save();update();});
+$("modeEst").addEventListener("click",()=>{S.mode="estimate";save();update();});
+
+$("slCal").addEventListener("click",()=>{
+  const r=calc(),e=r.e;if(!e)return;
+  const eff=e.ext*r.N/(r.slT*r.N*3600-e.layers*S.layerSec);
+  const f=eff/Math.min(1.4,Math.max(0.4,e.layer/0.2));
+  if(!(f>0&&isFinite(f)))return;
+  S.flow=Math.round(f*10)/10;$("flow").value=S.flow;curPr().v.flow=S.flow;save();update();
+  $("slNote").textContent+=` Потік виставлено: ${nf(S.flow,1)} мм³/с.`;
+});
+
+// ---------- printer presets ----------
+const prSel=$("printer");
+const prLabel=p=>p.name+" · "+p.v.rate+" грн/год";
+function refreshPr(){
+  const p=curPr(),o=prSel.options[prSel.selectedIndex];if(o)o.textContent=prLabel(p);
+  $("prSum").innerHTML="";$("prSum").append(p.name);const b=document.createElement("b");b.textContent=p.v.rate+" грн/год";$("prSum").append(b);
+}
+function buildPrinterSel(){
+  prSel.innerHTML="";
+  for(const p of printers){const o=document.createElement("option");o.value=p.id;o.textContent=prLabel(p);prSel.appendChild(o);}
+  prSel.value=curPr().id;
+}
+function applyPrinter(){
+  const p=curPr();curP=p.id;
+  for(const k of PR_KEYS)if(p.v[k]!=null){S[k]=p.v[k];$(k).value=S[k];}
+  $("prName").value=p.name;$("prDel").disabled=printers.length<2;resetDel();refreshPr();
+}
+prSel.addEventListener("change",()=>{curP=prSel.value;applyPrinter();save();buildBed();update();});
+$("prName").addEventListener("input",()=>{const p=curPr();p.name=$("prName").value.trim()||"Без назви";refreshPr();save();});
+$("prCopy").addEventListener("click",()=>{
+  const p=curPr(),n={id:"u"+Date.now(),name:p.name+" (копія)",v:{...p.v}};
+  printers.push(n);curP=n.id;buildPrinterSel();applyPrinter();save();$("prName").focus();$("prName").select();
+});
+let delArmed=null;
+function resetDel(){clearTimeout(delArmed);delArmed=null;$("prDel").textContent="Видалити";}
+$("prDel").addEventListener("click",()=>{
+  if(printers.length<2)return;
+  if(!delArmed){$("prDel").textContent="Точно видалити?";delArmed=setTimeout(resetDel,3000);return;}
+  printers=printers.filter(p=>p.id!==curP);curP=printers[0].id;buildPrinterSel();applyPrinter();save();buildBed();update();
+});
+const prPanel=$("prPanel");
+try{if(localStorage.getItem(STORE+".prOpen")==="0")prPanel.open=false;}catch(e){}
+prPanel.addEventListener("toggle",()=>{try{localStorage.setItem(STORE+".prOpen",prPanel.open?"1":"0")}catch(e){}});
+buildPrinterSel();applyPrinter();buildBed();
+
+update();
+resize();
+})();
+</script>
+
+</body>
+</html>
