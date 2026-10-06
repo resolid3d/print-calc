@@ -87,6 +87,7 @@ table.bd{width:100%;border-collapse:collapse;font-size:.9rem}
 .bd td.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px}
 .bd td .hint{display:block;color:var(--muted);font-size:.78rem;font-family:var(--f-mono)}
 .bd tr.tot td{font-weight:700;border-bottom:2px solid var(--fg)}
+.bd .missing{color:var(--warn);font-size:.84rem}
 .bd tr.fin td{font-weight:700;color:var(--accent);border-bottom:none;font-size:1rem}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 .panel h2,.panel summary{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;margin:0 0 10px}
@@ -266,33 +267,34 @@ const $=id=>document.getElementById(id);
 const STORE="printcalc.v1";
 
 const MATS={
-  "PLA":{d:1.24,p:600},"PETG":{d:1.27,p:650},"ABS":{d:1.04,p:650},
-  "ASA":{d:1.05,p:850},"TPU 95A":{d:1.21,p:1100},"PA-CF":{d:1.15,p:2600}
+  "PLA":{d:1.24,p:0},"PETG":{d:1.27,p:0},"ABS":{d:1.04,p:0},
+  "ASA":{d:1.05,p:0},"TPU 95A":{d:1.21,p:0},"PA-CF":{d:1.15,p:0}
 };
 const DEF={mode:"slicer",scale:100,qty:1,mat:"PLA",layer:"0.2",walls:2,infill:15,supports:"auto",supDens:15,
-  rate:20,waste:5,post:0,prep:0,modelH:0,modelRate:400,scanH:0,scanRate:500,scanCons:0,markup:30,
+  rate:0,waste:5,post:0,prep:0,modelH:0,modelRate:0,scanH:0,scanRate:0,scanCons:0,markup:0,
   flow:10,layerSec:4,warm:3,lineW:0.45,bedX:220,bedY:220,bedZ:250,slH:0,slM:0,slG:0,slN:0};
 const KEYS=Object.keys(DEF);
 // дані конкретного замовлення: не зберігаються між відкриттями
 const ONCE=["scale","qty","slH","slM","slG","slN","post","modelH","scanH","scanCons"];
 
 // порожнє поле = 0
-const CLEARABLE=["slH","slM","slG","slN","post","prep","modelH","scanH","scanCons"];
+const CLEARABLE=["slH","slM","slG","slN","post","prep","modelH","scanH","scanCons","rate","modelRate","scanRate","markup"];
+const showVal=k=>(CLEARABLE.includes(k)&&!S[k])?"":S[k];
 const PR_KEYS=["flow","layerSec","warm","lineW","bedX","bedY","bedZ","rate"];
 const PRESETS=[
-  {id:"h2d",name:"Bambu Lab H2D",v:{flow:12,layerSec:3,warm:15,lineW:0.42,bedX:325,bedY:320,bedZ:325,rate:25}},
-  {id:"x1c",name:"Bambu Lab X1C / X1E",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:20}},
-  {id:"p1s",name:"Bambu Lab P1S / P1P",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:15}},
-  {id:"a1",name:"Bambu Lab A1",v:{flow:10,layerSec:3,warm:6,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:10}},
-  {id:"a1m",name:"Bambu Lab A1 mini",v:{flow:9,layerSec:3,warm:5,lineW:0.42,bedX:180,bedY:180,bedZ:180,rate:8}},
-  {id:"mk4",name:"Prusa MK4S",v:{flow:12,layerSec:3,warm:6,lineW:0.45,bedX:250,bedY:210,bedZ:220,rate:15}},
-  {id:"k1",name:"Creality K1 / K1C",v:{flow:12,layerSec:3,warm:5,lineW:0.42,bedX:220,bedY:220,bedZ:250,rate:12}},
-  {id:"e3",name:"Creality Ender-3 V2",v:{flow:6,layerSec:5,warm:4,lineW:0.45,bedX:220,bedY:220,bedZ:250,rate:6}}
+  {id:"h2d",name:"Bambu Lab H2D",v:{flow:12,layerSec:3,warm:15,lineW:0.42,bedX:325,bedY:320,bedZ:325,rate:0}},
+  {id:"x1c",name:"Bambu Lab X1C / X1E",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:0}},
+  {id:"p1s",name:"Bambu Lab P1S / P1P",v:{flow:12,layerSec:3,warm:8,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:0}},
+  {id:"a1",name:"Bambu Lab A1",v:{flow:10,layerSec:3,warm:6,lineW:0.42,bedX:256,bedY:256,bedZ:256,rate:0}},
+  {id:"a1m",name:"Bambu Lab A1 mini",v:{flow:9,layerSec:3,warm:5,lineW:0.42,bedX:180,bedY:180,bedZ:180,rate:0}},
+  {id:"mk4",name:"Prusa MK4S",v:{flow:12,layerSec:3,warm:6,lineW:0.45,bedX:250,bedY:210,bedZ:220,rate:0}},
+  {id:"k1",name:"Creality K1 / K1C",v:{flow:12,layerSec:3,warm:5,lineW:0.42,bedX:220,bedY:220,bedZ:250,rate:0}},
+  {id:"e3",name:"Creality Ender-3 V2",v:{flow:6,layerSec:5,warm:4,lineW:0.45,bedX:220,bedY:220,bedZ:250,rate:0}}
 ];
 let S={...DEF}, mats=JSON.parse(JSON.stringify(MATS)), printers=JSON.parse(JSON.stringify(PRESETS)), curP="h2d";
 try{const raw=localStorage.getItem(STORE);if(raw){const o=JSON.parse(raw);Object.assign(S,o.s||{});for(const k of ONCE)S[k]=DEF[k];if(o.m&&Object.keys(o.m).length)mats=o.m;
   if(Array.isArray(o.p)&&o.p.length){printers=o.p;curP=o.cur||printers[0].id;}
-  else if(o.s&&o.s.rate!=null&&o.s.rate!==DEF.rate)printers[0].v.rate=o.s.rate;}}catch(e){}
+  else if(o.s&&o.s.rate)printers[0].v.rate=o.s.rate;}}catch(e){}
 function save(){
   const keep={};for(const k of KEYS)if(!ONCE.includes(k))keep[k]=S[k];
   try{localStorage.setItem(STORE,JSON.stringify({s:keep,m:mats,p:printers,cur:curP}))}catch(e){}
@@ -308,19 +310,18 @@ function buildMats(){
   names.forEach((k,i)=>{
     const o=document.createElement("option");o.value=k;o.textContent=k;matSel.appendChild(o);
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td><input type="text" id="mn_${i}" maxlength="30" aria-label="Назва матеріалу"></td><td><input type="number" step="0.01" min="0.5" id="md_${i}" aria-label="Густина"></td><td><input type="number" step="10" min="0" id="mp_${i}" aria-label="Ціна за кілограм"></td><td><button class="btn xs" type="button" id="mx_${i}">Видалити</button></td>`;
+    tr.innerHTML=`<td><input type="text" id="mn_${i}" maxlength="30" aria-label="Назва матеріалу"></td><td><input type="number" step="0.01" min="0.5" id="md_${i}" aria-label="Густина"></td><td><input type="number" step="10" min="0" id="mp_${i}" placeholder="0" aria-label="Ціна за кілограм"></td><td><button class="btn xs" type="button" id="mx_${i}">Видалити</button></td>`;
     tb.appendChild(tr);
     const nm=tr.querySelector("#mn_"+i),dn=tr.querySelector("#md_"+i),pr=tr.querySelector("#mp_"+i),del=tr.querySelector("#mx_"+i);
-    nm.value=k;dn.value=mats[k].d;pr.value=mats[k].p;
+    nm.value=k;dn.value=mats[k].d;pr.value=mats[k].p||"";
     nm.addEventListener("change",()=>{
       const nn=nm.value.trim();
       if(!nn||nn===k||mats[nn]){nm.value=k;return;}
       mats=Object.fromEntries(Object.entries(mats).map(([kk,v])=>[kk===k?nn:kk,v]));
       if(S.mat===k)S.mat=nn;save();buildMats();update();
     });
-    for(const [inp,f] of [[dn,"d"],[pr,"p"]])inp.addEventListener("input",()=>{
-      const v=parseFloat(inp.value);if(!(v>0))return;mats[k][f]=v;save();update();
-    });
+    dn.addEventListener("input",()=>{const v=parseFloat(dn.value);if(!(v>0))return;mats[k].d=v;save();update();});
+    pr.addEventListener("input",()=>{const v=pr.value===""?0:parseFloat(pr.value);if(!(v>=0))return;mats[k].p=v;save();update();});
     del.disabled=names.length<2;
     let armed=null;
     del.addEventListener("click",()=>{
@@ -332,12 +333,12 @@ function buildMats(){
 }
 $("matAdd").addEventListener("click",()=>{
   let n="Новий матеріал",i=2;while(mats[n])n="Новий матеріал "+i++;
-  mats[n]={d:1.24,p:600};save();buildMats();
+  mats[n]={d:1.24,p:0};save();buildMats();
   const inp=$("mn_"+(Object.keys(mats).length-1));inp.closest("details").open=true;inp.focus();inp.select();
 });
 buildMats();
 for(const k of KEYS){
-  const el=$(k);if(!el)continue;el.value=(CLEARABLE.includes(k)&&!S[k])?"":S[k];
+  const el=$(k);if(!el)continue;el.value=showVal(k);if(CLEARABLE.includes(k)&&!el.placeholder)el.placeholder="0";
   el.addEventListener("input",()=>{
     const num=typeof DEF[k]==="number";
     if(num){
@@ -592,6 +593,12 @@ function update(){
     h+=`<tr><td>Націнка ${nf(S.markup)}%</td><td class="n">${uah(r.price-r.cost)}</td></tr>`;
     h+=`<tr class="fin"><td>Ціна${r.q>1?`<span class="hint">${uah(r.price/r.q)} за штуку</span>`:""}</td><td class="n">${uah(r.price)}</td></tr>`;
   }
+  const miss=[];
+  if(r.hasPrint&&!S.rate)miss.push("ціна години принтера");
+  if(r.hasPrint&&!(r.mat.p>0))miss.push("ціна "+S.mat+" за кг (у «Матеріалах»)");
+  if(S.modelH&&!S.modelRate)miss.push("ставка моделювання");
+  if(S.scanH&&!S.scanRate)miss.push("ставка сканування");
+  if(miss.length)h=`<tr><td colspan="2"><span class="missing">Не заповнено: ${miss.join(", ")}. Введи один раз — калькулятор запам'ятає.</span></td></tr>`+h;
   $("bd").innerHTML=h;
 
   // порівняння слайсера з оцінкою з файлу
@@ -616,7 +623,7 @@ function update(){
 
 // нове замовлення: разові поля до початкових, модель прибрати; налаштування не чіпаємо
 $("clearOrder").addEventListener("click",()=>{
-  for(const k of ONCE){S[k]=DEF[k];const el=$(k);if(el)el.value=(CLEARABLE.includes(k)&&!S[k])?"":S[k];}
+  for(const k of ONCE){S[k]=DEF[k];const el=$(k);if(el)el.value=showVal(k);}
   if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh=null;}
   M=null;A=null;$("mName").textContent="Модель не відкрита";
   update();$("slH").focus();
@@ -635,10 +642,11 @@ $("slCal").addEventListener("click",()=>{
 
 // ---------- printer presets ----------
 const prSel=$("printer");
-const prLabel=p=>p.name+" · "+p.v.rate+" грн/год";
+const rateTxt=p=>p.v.rate?p.v.rate+" грн/год":"ціна години не задана";
+const prLabel=p=>p.name+" · "+rateTxt(p);
 function refreshPr(){
   const p=curPr(),o=prSel.options[prSel.selectedIndex];if(o)o.textContent=prLabel(p);
-  $("prSum").innerHTML="";$("prSum").append(p.name);const b=document.createElement("b");b.textContent=p.v.rate+" грн/год";$("prSum").append(b);
+  $("prSum").innerHTML="";$("prSum").append(p.name);const b=document.createElement("b");b.textContent=rateTxt(p);$("prSum").append(b);
 }
 function buildPrinterSel(){
   prSel.innerHTML="";
@@ -647,7 +655,7 @@ function buildPrinterSel(){
 }
 function applyPrinter(){
   const p=curPr();curP=p.id;
-  for(const k of PR_KEYS)if(p.v[k]!=null){S[k]=p.v[k];$(k).value=S[k];}
+  for(const k of PR_KEYS)if(p.v[k]!=null){S[k]=p.v[k];$(k).value=showVal(k);}
   $("prName").value=p.name;$("prDel").disabled=printers.length<2;resetDel();refreshPr();
 }
 prSel.addEventListener("change",()=>{curP=prSel.value;applyPrinter();save();buildBed();update();});
